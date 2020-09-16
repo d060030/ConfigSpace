@@ -27,6 +27,7 @@
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 from collections import defaultdict
+import copy
 import unittest
 import pytest
 
@@ -849,6 +850,36 @@ class TestHyperparameters(unittest.TestCase):
 
         self.assertEqual(actual_test(), actual_test())
 
+    def test_categorical_copy_with_weights(self):
+        orig_hp = CategoricalHyperparameter(
+            name="param",
+            choices=[1, 2, 3],
+            default_value=2,
+            weights=[1, 3, 6]
+        )
+        copy_hp = copy.copy(orig_hp)
+
+        self.assertEqual(copy_hp.name, orig_hp.name)
+        self.assertTupleEqual(copy_hp.choices, orig_hp.choices)
+        self.assertEqual(copy_hp.default_value, orig_hp.default_value)
+        self.assertEqual(copy_hp.num_choices, orig_hp.num_choices)
+        self.assertTupleEqual(copy_hp.probabilities, orig_hp.probabilities)
+
+    def test_categorical_copy_without_weights(self):
+        orig_hp = CategoricalHyperparameter(
+            name="param",
+            choices=[1, 2, 3],
+            default_value=2
+        )
+        copy_hp = copy.copy(orig_hp)
+
+        self.assertEqual(copy_hp.name, orig_hp.name)
+        self.assertTupleEqual(copy_hp.choices, orig_hp.choices)
+        self.assertEqual(copy_hp.default_value, orig_hp.default_value)
+        self.assertEqual(copy_hp.num_choices, orig_hp.num_choices)
+        self.assertIsNone(copy_hp.probabilities)
+        self.assertIsNone(orig_hp.probabilities)
+
     def test_categorical_with_weights(self):
         rs = np.random.RandomState()
 
@@ -961,6 +992,22 @@ class TestHyperparameters(unittest.TestCase):
                 choices=["A", "B", "C"],
                 default_value="A",
                 weights=[0.1, -0.1, 0.3]
+            )
+
+    def test_categorical_with_set(self):
+        with self.assertRaisesRegex(TypeError, 'Using a set of choices is prohibited.'):
+            CategoricalHyperparameter(
+                name="param",
+                choices={"A", "B", "C"},
+                default_value="A",
+            )
+
+        with self.assertRaisesRegex(TypeError, 'Using a set of weights is prohibited.'):
+            CategoricalHyperparameter(
+                name="param",
+                choices=["A", "B", "C"],
+                default_value="A",
+                weights={0.2, 0.6, 0.8},
             )
 
     def test_log_space_conversion(self):

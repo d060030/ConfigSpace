@@ -1223,7 +1223,7 @@ cdef class NormalIntegerHyperparameter(IntegerHyperparameter):
 
 cdef class CategoricalHyperparameter(Hyperparameter):
     cdef public tuple choices
-    cdef public list probabilities
+    cdef public tuple probabilities
     cdef public int num_choices
     cdef list choices_vector
     cdef set _choices_set
@@ -1236,12 +1236,16 @@ cdef class CategoricalHyperparameter(Hyperparameter):
         choices: Union[List[Union[str, float, int]], Tuple[Union[float, int, str]]],
         default_value: Union[int, float, str, None]=None,
         meta: Optional[Dict]=None,
-        weights: List[float]=None
+        weights: Union[List[float], Tuple[float]] = None
     ) -> None:
         """
         A categorical hyperparameter.
 
         Its values are sampled from a set of ``values``.
+
+        ``None`` is a forbidden value, please use a string constant instead and parse
+        it in your own code, see `here <https://github.com/automl/ConfigSpace/issues/159>_`
+        for further details.
 
         Example
         -------
@@ -1280,6 +1284,12 @@ cdef class CategoricalHyperparameter(Hyperparameter):
                 )
             if choice is None:
                 raise TypeError("Choice 'None' is not supported")
+        if isinstance(choices, set):
+            raise TypeError('Using a set of choices is prohibited as it can result in '
+                            'non-deterministic behavior. Please use a list or a tuple.')
+        if isinstance(weights, set):
+            raise TypeError('Using a set of weights is prohibited as it can result in '
+                            'non-deterministic behavior. Please use a list or a tuple.')
         self.choices = tuple(choices)
         self.probabilities = self._get_probabilities(choices=self.choices, weights=weights)
         self.num_choices = len(choices)
@@ -1298,6 +1308,8 @@ cdef class CategoricalHyperparameter(Hyperparameter):
         repr_str.write("}")
         repr_str.write(", Default: ")
         repr_str.write(str(self.default_value))
+        if self.probabilities is not None:
+            repr_str.write(", Probabilities: %s" % str(self.probabilities))
         repr_str.seek(0)
         return repr_str.getvalue()
 
@@ -1342,6 +1354,7 @@ cdef class CategoricalHyperparameter(Hyperparameter):
             name=self.name,
             choices=copy.deepcopy(self.choices),
             default_value=self.default_value,
+            weights=copy.deepcopy(self.probabilities)
         )
 
     cpdef int compare(self, value: Union[int, float, str], value2: Union[int, float, str]):
@@ -1380,7 +1393,7 @@ cdef class CategoricalHyperparameter(Hyperparameter):
         if np.any(weights < 0):
             raise ValueError("Negative weights are not allowed.")
 
-        return list(weights / np.sum(weights))
+        return tuple(weights / np.sum(weights))
 
     def check_default(self, default_value: Union[None, str, float, int]) -> Union[str, float, int]:
         if default_value is None:
@@ -1494,6 +1507,10 @@ cdef class OrdinalHyperparameter(Hyperparameter):
 
         Its values are sampled form a ``sequence`` of values.
         The sequence of values from a ordinal hyperparameter is ordered.
+
+        ``None`` is a forbidden value, please use a string constant instead and parse
+        it in your own code, see `here <https://github.com/automl/ConfigSpace/issues/159>_`
+        for further details.
 
         Example
         -------
